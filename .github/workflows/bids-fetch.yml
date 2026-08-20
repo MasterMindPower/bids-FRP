@@ -1,0 +1,65 @@
+name: GeM Bids Auto Fetcher
+
+on:
+  schedule:
+    # 10:00 AM, 3:00 PM, 6:00 PM IST (UTC: 04:30, 09:30, 12:30)
+    - cron: '30 4,9,12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-and-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install -q -r github/requirements.txt
+
+      - name: Run Fetch Pipeline (Silent)
+        env:
+          SCRIPT_KEY: ${{ secrets.SCRIPT_KEY }}
+        run: |
+          python github/run.py > /dev/null 2>&1
+
+      - name: Push Encrypted Payload
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          TARGET_REPO: ${{ secrets.TARGET_REPO }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [ -n "$TARGET_REPO" ] && [ -n "$GH_PAT" ]; then
+            # Push bids.enc to designated private repository
+            git clone "https://x-access-token:${GH_PAT}@github.com/${TARGET_REPO}.git" target_repo > /dev/null 2>&1
+            cp bids.enc target_repo/ 2>/dev/null || true
+            cp bids.json target_repo/ 2>/dev/null || true
+            cd target_repo
+            git add bids.enc bids.json 2>/dev/null || true
+            git commit -m "Auto-update bids [$(TZ='Asia/Kolkata' date '+%d-%m-%Y %H:%M:%S IST')]" > /dev/null 2>&1 || true
+            git push origin HEAD > /dev/null 2>&1 || true
+            cd ..
+          else
+            # Push to current repository
+            git add bids.enc bids.json final-bids.json 2>/dev/null || true
+            git commit -m "Auto-update bids [$(TZ='Asia/Kolkata' date '+%d-%m-%Y %H:%M:%S IST')]" > /dev/null 2>&1 || true
+            git push origin HEAD > /dev/null 2>&1 || true
+          fi
+
+      - name: Summary Log
+        run: |
+          IST_TIME=$(TZ='Asia/Kolkata' date '+%d-%m-%Y %H:%M:%S IST')
+          echo "Successfully generated and created at: $IST_TIME"

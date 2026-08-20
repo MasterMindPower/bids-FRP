@@ -1,0 +1,7 @@
+# Ignore everything in root except .github and github folders
+/*
+!/.github/
+!/.github/**
+!/github/
+!/github/**
+!/.gitignore
