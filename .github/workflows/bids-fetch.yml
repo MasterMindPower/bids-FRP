@@ -1,4 +1,4 @@
-name: GeM Bids Auto Fetcher
+name: Bids Auto Fetcher
 
 on:
   schedule:
