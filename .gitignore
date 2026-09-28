@@ -5,3 +5,8 @@
 !/github/
 !/github/**
 !/.gitignore
+
+# Ignore caches
+**/__pycache__/
+*.pyc
+
